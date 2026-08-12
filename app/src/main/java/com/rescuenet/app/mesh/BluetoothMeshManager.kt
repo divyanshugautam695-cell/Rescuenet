@@ -8,7 +8,9 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.ParcelUuid
 import com.rescuenet.app.model.MeshPeer
@@ -29,10 +31,8 @@ class BluetoothMeshManager(context: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
             val name = device.name ?: "RescueNet node"
-            if (name.startsWith("RN-")) {
-                peers[device.address] = MeshPeer(name, device.address, result.rssi, connected = false)
-                callback?.invoke(peers.values.toList())
-            }
+            peers[device.address] = MeshPeer(name, device.address, result.rssi, connected = false)
+            callback?.invoke(peers.values.toList())
         }
     }
 
@@ -40,13 +40,13 @@ class BluetoothMeshManager(context: Context) {
     fun startDiscovery(onPeersChanged: (List<MeshPeer>) -> Unit) {
         callback = onPeersChanged
         peers.clear()
-        scanner?.startScan(scanCallback)
+        val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build()
+        val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+        scanner?.startScan(listOf(filter), settings, scanCallback)
     }
 
     @SuppressLint("MissingPermission")
-    fun stopDiscovery() {
-        scanner?.stopScan(scanCallback)
-    }
+    fun stopDiscovery() { scanner?.stopScan(scanCallback) }
 
     @SuppressLint("MissingPermission")
     fun startAdvertising() {
@@ -64,9 +64,7 @@ class BluetoothMeshManager(context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun stopAdvertising() {
-        adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
-    }
+    fun stopAdvertising() { adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback) }
 
     private val advertiseCallback = object : AdvertiseCallback() {}
 }
